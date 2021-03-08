@@ -21,13 +21,17 @@ from PyQt5 import QtWidgets, QtCore, QtGui, Qt, QtSql, uic
 TYPE_DICT={1:"BOOLEAN", 2:"INTEGER",6:"NUMERIC", 10:"TEXT", 12:"BLOB"}
 
 from functools import partial
+ui_path = os.path.dirname(os.path.abspath(__file__))
+mainwindowUi = uic.loadUiType(os.path.join(ui_path, "ui/mainwindow.ui"))[0]
+modify_table_dialogUi= uic.loadUiType(os.path.join(ui_path, "ui/modify_table_dialog.ui"))[0]
 
+#mainwindow = uic.loadUiType("main_window.ui")[0]
 
 app = QtWidgets.QApplication(sys.argv)
 
 __appname__='PyQt SqLite Database Browser'
 
-class ModifyTableDialog(QtWidgets.QDialog, uic.loadUiType('modify_table_dialog.ui')[0]):
+class ModifyTableDialog(QtWidgets.QDialog, modify_table_dialogUi):
     def __init__(self, parent=None, *args):
         super(ModifyTableDialog, self).__init__(*args)
         self.parent=parent
@@ -186,7 +190,7 @@ class ModifyTableDialog(QtWidgets.QDialog, uic.loadUiType('modify_table_dialog.u
         self.close()
 
 
-class MainWindow(QtWidgets.QMainWindow, uic.loadUiType('mainwindow.ui')[0]):
+class MainWindow(QtWidgets.QMainWindow, mainwindowUi):
     selectedTable=None
     work_directory=os.path.dirname(os.path.realpath(__file__))
     current_database_file=''
