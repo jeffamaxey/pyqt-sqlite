@@ -57,34 +57,31 @@ class ModifyTableDialog(QtWidgets.QDialog, modify_table_dialogUi):
             if self.tableWidget.cellWidget(row,4):
 
                 field_not_item = self.tableWidget.cellWidget(row,2)
-                
+
                 if self.tableWidget.cellWidget(row,2).isChecked(): field_not = ' NOT NULL'
-                
+
 
                 if self.tableWidget.cellWidget(row,3).isChecked(): pk_fields.append(field_name)
-            
+
                 if self.tableWidget.cellWidget(row,4).isChecked(): 
                     auto_incr = ' PRIMARY KEY AUTOINCREMENT'
                     pk_auto=True
-                     
+
             data.append((field_name,field_type, field_not, auto_incr))
-                    
+
         if pk_auto : pk_fields=[]       
-           
-                
-        sql_lines=[]
-        for r in data:
-            sql_lines.append( '    `%s`  `%s`  %s  %s' % (r[0], r[1], r[2], r[3])) 
-    
+
+
+        sql_lines = [f'    `{r[0]}`  `{r[1]}`  {r[2]}  {r[3]}' for r in data]
         if pk_fields: sql_lines.append('    PRIMARY KEY('+','.join(pk_fields)+')')
-        
-        
+
+
         self.query='CREATE TABLE `%s` (\n' % self.lineEdit.text()
-        
+
         self.query +=',\n'.join(sql_lines)
-        
+
         self.query +='\n)'
-    
+
         self.textEdit.setText(self.query)
 
         if self.lineEdit.text() and sql_lines: self.buttonBox.buttons()[0].setEnabled(True)
@@ -157,8 +154,7 @@ class ModifyTableDialog(QtWidgets.QDialog, modify_table_dialogUi):
     
     def make_primary_key(self):
         for row in range(self.model.rowCount()):
-            ai=self.tableWidget.cellWidget(row,4)
-            if ai:
+            if ai := self.tableWidget.cellWidget(row, 4):
                 pk=self.tableWidget.cellWidget(row,3)
                 if ai.isChecked():
                     pk.setChecked(True)
@@ -166,7 +162,7 @@ class ModifyTableDialog(QtWidgets.QDialog, modify_table_dialogUi):
                     type_combo.setCurrentIndex(1)
                 else:
                     pk.setChecked(False)
-  
+
         self.update_code_text()
     
     def clear_primary_key(self):
@@ -218,7 +214,7 @@ class MainWindow(QtWidgets.QMainWindow, mainwindowUi):
     def setTitle(self, title=None):
         t_str="PyQt SqLite"
         if title:
-            t_str += ' [%s]' % title
+            t_str += f' [{title}]'
         self.setWindowTitle(t_str)
     
     @QtCore.pyqtSlot()
@@ -233,14 +229,15 @@ class MainWindow(QtWidgets.QMainWindow, mainwindowUi):
     @QtCore.pyqtSlot()
     def on_commandLinkButton_3_clicked(self):
         if self.selectedTable:
-            result=QtWidgets.QMessageBox.question(self, "Warning",
-                                                     "You are just deleting %s %s. You will lost all the data in %s. Dou you want to delete?" % (
-                                                     self.selectedTable[1],
-                                                     self.selectedTable[0],
-                                                     self.selectedTable[0]
-                                                   ))
+            result = QtWidgets.QMessageBox.question(
+                self,
+                "Warning",
+                f"You are just deleting {self.selectedTable[1]} {self.selectedTable[0]}. You will lost all the data in {self.selectedTable[0]}. Dou you want to delete?",
+            )
         if result==QtWidgets.QMessageBox.Yes:
-            self.current_database.exec("DROP %s `%s`" % (self.selectedTable[0], self.selectedTable[1]))
+            self.current_database.exec(
+                f"DROP {self.selectedTable[0]} `{self.selectedTable[1]}`"
+            )
             if not self.error_check(self.current_database):
                 self.update_tables_table()
         
@@ -267,43 +264,45 @@ class MainWindow(QtWidgets.QMainWindow, mainwindowUi):
         self.tree_model.clear()
         self.tree_model.setHorizontalHeaderLabels(['Name', 'Type','Schema'])
         for typ in ('table','view'):
-            q=self.current_database.exec("SELECT name FROM sqlite_master WHERE type = '%s'" % typ)
+            q = self.current_database.exec(
+                f"SELECT name FROM sqlite_master WHERE type = '{typ}'"
+            )
             self.error_check(self.current_database)
             tables=[]
             while q.next():
                 tables.append(q.value(0))
-            
+
             tab_par = QtGui.QStandardItem('%ss (%d)' % (typ.title(),len(tables)))
-            
+
             for tb in tables:
-                if typ=='table': c_icon="sc_inserttable.png"
-                else: c_icon="sc_dbviewtablenames.png"
-                self.comboBox.addItem(QtGui.QIcon("icons/"+c_icon), tb)
+                c_icon = "sc_inserttable.png" if typ=='table' else "sc_dbviewtablenames.png"
+                self.comboBox.addItem(QtGui.QIcon(f"icons/{c_icon}"), tb)
                 tb_name=QtGui.QStandardItem(tb)
                 tb_name.tableType=typ
                 tb_type=QtGui.QStandardItem(typ.title())
-                q=self.current_database.exec("SELECT sql FROM sqlite_master WHERE tbl_name = '%s' AND type = '%s'" % (tb,typ))
+                q = self.current_database.exec(
+                    f"SELECT sql FROM sqlite_master WHERE tbl_name = '{tb}' AND type = '{typ}'"
+                )
                 tb_schema_str=''
                 if q.next():
                     tb_schema_str=q.value(0)
                     tb_schema_str=tb_schema_str.replace("\n", " ")
                     tb_schema_str=tb_schema_str.replace("\t", " ")
-               
+
                 tb_schema=QtGui.QStandardItem(tb_schema_str)
-                
+
                 driver=self.current_database.driver()
                 rec=driver.record(tb)
                 for i in range(rec.count()):
                     col_name=QtGui.QStandardItem(rec.field(i).name())
                     type_id=rec.field(i).type()
-                    if type_id in TYPE_DICT: type_str=TYPE_DICT[type_id]
-                    else: type_str=str(type_id)
+                    type_str = TYPE_DICT[type_id] if type_id in TYPE_DICT else str(type_id)
                     col_type=QtGui.QStandardItem(type_str)
-                
+
                     tb_name.appendRow([col_name, col_type])
-                 
+
                 tab_par.appendRow([tb_name, tb_type, tb_schema])
-                
+
             self.tree_model.appendRow(tab_par)
 
 
@@ -326,11 +325,11 @@ class MainWindow(QtWidgets.QMainWindow, mainwindowUi):
 
         
         
-    @QtCore.pyqtSlot(str)    
+    @QtCore.pyqtSlot(str)
     def on_comboBox_currentIndexChanged(self,tbl_name):
         if tbl_name:
             model = QtSql.QSqlTableModel()
-            model.setTable('"'+tbl_name+'"')
+            model.setTable(f'"{tbl_name}"')
             model.setEditStrategy(QtSql.QSqlTableModel.OnFieldChange)
             model.select()
 
@@ -388,9 +387,7 @@ class MainWindow(QtWidgets.QMainWindow, mainwindowUi):
     @QtCore.pyqtSlot()
     def on_saveQueryAsView_pressed(self):
         
-        model = self.queryTableView.model()
-        
-        if model:
+        if model := self.queryTableView.model():
             if model.rowCount():
                 view_name, result = QtWidgets.QInputDialog.getText(self, __appname__, 'Enter vieww name:')
                 if result:
@@ -406,7 +403,7 @@ class MainWindow(QtWidgets.QMainWindow, mainwindowUi):
                 self.comboBox.clear()
                 tbm=self.tableView.model()
                 tbm.clear()
-                
+
                 self.current_database.close()
                 self.setTitle()
                 self.commandLinkButton.setEnabled(False)
@@ -414,10 +411,9 @@ class MainWindow(QtWidgets.QMainWindow, mainwindowUi):
             print('Clearing "Execute SQL Widgets"')
             #clear "Execute SQL Widgets"
             self.queryTextEdit.clear()
-            tableModel=self.queryTableView.model()
-            if tableModel:
+            if tableModel := self.queryTableView.model():
                 tableModel.clear()
-            
+
             self.queryTableView.setModel(None)
             self.queryResultText.clear() 
 
